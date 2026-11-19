@@ -110,3 +110,17 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+## O QUE FALTA FAZER:
+
+# [ ] Afinar logreg (C) e RF (max_depth), poucos valores
+# [ ] Testar agrupar clusters 1 e 3
+# [ ] Métricas extra do melhor modelo (recall, precision, F1, matriz de confusão)
+# [ ] Escolher o modelo final
+# [ ] Escrever o train.py final (só o pipeline escolhido, grava model.pkl)
+# [ ] Escrever my_model.py (load_model, predict) e utils.py
+# [ ] Ler o validate_submission_2.py para ver o formato real do predict
+# [ ] Correr o validador e testar o predict a partir de outra pasta
+# [ ] Declarações em PDF (grupo + individuais)
+# [ ] Criar o ZIP sem pasta extra e rever a checklist da secção 8
+# [ ] (Opcional) README curto a justificar as decisões
