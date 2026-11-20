@@ -55,7 +55,7 @@ def teste_ridge_fit(df, run=True):
         r2 = 1 - ((y - pred)**2).sum() / ((y - y.mean())**2).sum()
         print("R² na validação:", round(r2, 3))
 
-def auc_fold(df, ano, cols, make_model, so_completas=False, imputar=False):
+def auc_calc(df, ano, cols, make_model, so_completas=False, imputar=False):
     chl_real = df["CHL"].notna() # mask para linhas com um valor real de CHL
 
     tr = df["Year"] < ano # mask com True para os anos de treino
@@ -120,13 +120,17 @@ def main():
         for v1 in valor1:
             for v2 in (valor2 if valor2 is not None else [None]):
                 make = lambda u=v1, v=v2: model(u, v)
-                aucs = [auc_fold(df, ano, make_model=make, **variante_escolhida) for ano in anos_val]
+                aucs = [auc_calc(df, ano, make_model=make, **variante_escolhida) for ano in anos_val]
                 print(f"  {str(v1):<8} {str(v2):<8}", "AUC anuais:", np.round(aucs, 3),
                     "Média AUC:", round(np.mean(aucs), 3), "Std Dev AUC:", round(np.std(aucs), 3))
     print("\n\n Valores da validação final (2020) para os melhores modelos: \n")
     for nome, make in modelos_finais.items():
-        auc = auc_fold(df, 2020, make_model=make, **variante_escolhida)
+        auc = auc_calc(df, 2020, make_model=make, **variante_escolhida)
         print(f"{nome:25s} AUC 2020 = {auc:.3f}")
+
+
+
+
 
 if __name__ == "__main__":
     main()
@@ -136,10 +140,11 @@ if __name__ == "__main__":
 
 ## O QUE FALTA FAZER:
 
-# [ ] Afinar logreg (C) e RF (max_depth), poucos valores
-# [ ] Testar agrupar clusters 1 e 3
+# [ ] Adicionar kNN e Bayes
+# [ ] Ver se há alguma variável que deva ser filtrada
+# [x] Afinar logreg (C) e RF (max_depth), poucos valores
 # [ ] Métricas extra do melhor modelo (recall, precision, F1, matriz de confusão)
-# [ ] Escolher o modelo final
+# [x] Escolher o modelo final
 # [ ] Escrever o train.py final (só o pipeline escolhido, grava model.pkl)
 # [ ] Escrever my_model.py (load_model, predict) e utils.py
 # [ ] Ler o validate_submission_2.py para ver o formato real do predict
