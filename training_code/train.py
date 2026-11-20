@@ -8,17 +8,13 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.neural_network import MLPClassifier
 
 modelos = {
-    "logreg C=0.01": lambda: LogisticRegression(C=0.01, class_weight="balanced", max_iter=1000),
-    "logreg C=0.1":  lambda: LogisticRegression(C=0.1,  class_weight="balanced", max_iter=1000),
-    "logreg C=1":    lambda: LogisticRegression(C=1,    class_weight="balanced", max_iter=1000),
-    "logreg C=10":   lambda: LogisticRegression(C=10,   class_weight="balanced", max_iter=1000),
-    "arvore":  lambda: DecisionTreeClassifier(max_depth=4, min_samples_leaf=10, class_weight="balanced", random_state=0),
-    "rf":      lambda: RandomForestClassifier(n_estimators=300, max_depth=5, min_samples_leaf=5, class_weight="balanced", random_state=0),
-    "mlp":     lambda: MLPClassifier(hidden_layer_sizes=(16,), alpha=1e-2, max_iter=1000, random_state=0),
-}
-
-iteracoes = {
-    
+    "logreg C":     (lambda u,v: LogisticRegression(C=u, class_weight="balanced", max_iter=1000), [0.01, 0.1, 1, 10], None),
+    "arvore depth": (lambda u,v: DecisionTreeClassifier(max_depth=u, min_samples_leaf=10,
+                                                     class_weight="balanced", random_state=0), [3, 4, 5, 6], None),
+    "rf depth x leaf":     (lambda u,v: RandomForestClassifier(n_estimators=300, max_depth=u, min_samples_leaf=v,
+                                                      class_weight="balanced", random_state=0), [3, 5, 7], [5, 10]),
+    "mlp layers x alpha":    (lambda u,v: MLPClassifier(hidden_layer_sizes=u, alpha=v,
+                                             max_iter=2000, random_state=0), [(8,), (16,)], [1e-3, 1e-2, 1e-1, 1]),
 }
 
 
@@ -107,13 +103,17 @@ def main():
         "B: imputa mediana":    dict(cols=com_chl, imputar=True),
         "C: sem CHL":           dict(cols=base),
     }   
-    anos_val = [2016, 2018, 2019, 2020]
+    variante_escolhida = variantes["C: sem CHL"]  # variante escolhida para o modelo final
+    anos_val = [2016, 2018, 2019]
     # Teste de AUC para cada modelo
-    for nome_modelo, model in modelos.items():
+    for nome_modelo, (model, valor1, valor2) in modelos.items():
         print(f"Modelo: {nome_modelo}")
-        for nome, cfg in variantes.items():
-            aucs = [auc_fold(df, ano, make_model=model, **cfg) for ano in anos_val]
-            print(f"{nome:25s}", np.round(aucs, 3), "média", round(np.mean(aucs), 3), "dp", round(np.std(aucs), 3))
+        for v1 in valor1:
+            for v2 in (valor2 if valor2 is not None else [None]):
+                make = lambda u=v1, v=v2: model(u, v)
+                aucs = [auc_fold(df, ano, make_model=make, **variante_escolhida) for ano in anos_val]
+                print(f"  {str(v1):<8} {str(v2):<8}", np.round(aucs, 3),
+                    "média", round(np.mean(aucs), 3), "dp", round(np.std(aucs), 3))
 
 if __name__ == "__main__":
     main()
