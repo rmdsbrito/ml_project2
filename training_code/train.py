@@ -8,13 +8,13 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.neural_network import MLPClassifier
 
 modelos = {
-    "logreg C":     (lambda u,v: LogisticRegression(C=u, class_weight="balanced", max_iter=1000), [0.01, 0.1, 1, 10], None),
+    "logreg C":     (lambda u,v: LogisticRegression(C=u, class_weight="balanced", max_iter=1000), [0.01, 0.1, 1, 10, 100], None),
     "arvore depth": (lambda u,v: DecisionTreeClassifier(max_depth=u, min_samples_leaf=10,
                                                      class_weight="balanced", random_state=0), [3, 4, 5, 6], None),
     "rf depth x leaf":     (lambda u,v: RandomForestClassifier(n_estimators=300, max_depth=u, min_samples_leaf=v,
                                                       class_weight="balanced", random_state=0), [3, 5, 7], [5, 10]),
     "mlp layers x alpha":    (lambda u,v: MLPClassifier(hidden_layer_sizes=u, alpha=v,
-                                             max_iter=2000, random_state=0), [(8,), (16,)], [1e-3, 1e-2, 1e-1, 1]),
+                                             max_iter=2000, random_state=0), [(8,), (16,)], [1e-3, 1e-2, 1e-1, 1, 5, 10]),
 }
 
 
