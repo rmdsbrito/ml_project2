@@ -8,7 +8,7 @@ import json
 import sys
 from pathlib import Path
 
-from model_artifact_policy import (
+from scripts.model_artifact_policy import (
     validate_explicit_transformation_sources,
     validate_explicit_transformations,
 )
