@@ -6,24 +6,26 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neural_network import MLPClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
 
 modelos_teste = {
-    "logreg C":     (lambda u,v: LogisticRegression(C=u, class_weight="balanced", max_iter=1000), [0.01, 0.1, 1, 10, 100], None),
+    "logreg C": (lambda u,v: LogisticRegression(C=u, class_weight="balanced", max_iter=1000), [0.01, 0.1, 1, 10, 100], None),
     "arvore depth": (lambda u,v: DecisionTreeClassifier(max_depth=u, min_samples_leaf=10,
                                                      class_weight="balanced", random_state=0), [3, 4, 5, 6], None),
-    "rf depth x leaf":     (lambda u,v: RandomForestClassifier(n_estimators=300, max_depth=u, min_samples_leaf=v,
+    "rf depth x leaf": (lambda u,v: RandomForestClassifier(n_estimators=300, max_depth=u, min_samples_leaf=v,
                                                       class_weight="balanced", random_state=0), [3, 5, 7], [5, 10]),
-    "mlp layers x alpha":    (lambda u,v: MLPClassifier(hidden_layer_sizes=u, alpha=v,
-                                             max_iter=2000, random_state=0), [(8,), (16,)], [1e-3, 1e-2, 1e-1, 1, 5, 10]),
-                                             
+    "mlp layers x alpha": (lambda u,v: MLPClassifier(hidden_layer_sizes=u, alpha=v,
+                                             max_iter=2000, random_state=0), [(8,), (12,), (16,)], [1e-1, 1, 5, 10]),
+    "kNN k x weights": (lambda u, v: KNeighborsClassifier(n_neighbors=u, weights=v),[5, 15, 30, 60], ["uniform", "distance"],),
+    "naive bayes var_smoothing": (lambda u, v: GaussianNB(var_smoothing=u), [1e-9, 1e-3, 1e-1, 1], None),                                             
 }
 
 # Dois melhores modelos par comparação direta
 modelos_finais = {
-    "logreg (C=0.1)":      lambda: LogisticRegression(C=0.1, class_weight="balanced", max_iter=1000),
-    "mlp (16 lay) a=5":     lambda: MLPClassifier(hidden_layer_sizes=(16,), alpha=5, max_iter=2000, random_state=0),
-    "rf d=3 leaf=10":    lambda: RandomForestClassifier(n_estimators=300, max_depth=3, min_samples_leaf=10,
-                                                        class_weight="balanced", random_state=0),
+    "logreg (C=0.1)": lambda: LogisticRegression(C=0.1, class_weight="balanced", max_iter=1000),
+    "mlp (12 lay) a=0.1": lambda: MLPClassifier(hidden_layer_sizes=(12,), alpha=0.1, max_iter=2000, random_state=0),
+    "kNN 60 nei - uniform": lambda: KNeighborsClassifier(n_neighbors=60, weights="uniform"),
 }
 
 
@@ -105,25 +107,22 @@ def main():
     teste_ridge_fit(df, run=False)
 
     # Definir variantes para teste de AUC
-    base = ["doy_sin", "doy_cos", "SST", "UI"] + [f"cluster_{c}" for c in range(6)]
-    com_chl = base + ["log_CHL", "CHL_uncertainty"] 
-    variantes = {
-        "A: so completas":      dict(cols=com_chl, so_completas=True),
-        "B: imputa mediana":    dict(cols=com_chl, imputar=True),
-        "C: sem CHL":           dict(cols=base),
-    }   
-    variante_escolhida = variantes["C: sem CHL"]  # variante escolhida para o modelo final
+    base = ["doy_sin", "doy_cos", "SST"] + [f"cluster_{c}" for c in range(6)]
+    variante_escolhida = dict(cols=base)  # variante escolhida para o modelo final
     anos_val = [2016, 2018, 2019]
     # Teste de AUC para cada modelo
-    for nome_modelo, (model, valor1, valor2) in modelos_teste.items():
-        print(f"Modelo: {nome_modelo}")
-        for v1 in valor1:
-            for v2 in (valor2 if valor2 is not None else [None]):
-                make = lambda u=v1, v=v2: model(u, v)
-                aucs = [auc_calc(df, ano, make_model=make, **variante_escolhida) for ano in anos_val]
-                print(f"  {str(v1):<8} {str(v2):<8}", "AUC anuais:", np.round(aucs, 3),
-                    "Média AUC:", round(np.mean(aucs), 3), "Std Dev AUC:", round(np.std(aucs), 3))
-    print("\n\n Valores da validação final (2020) para os melhores modelos: \n")
+    PRINT_MODELS = True
+    if PRINT_MODELS:
+        for nome_modelo, (model, valor1, valor2) in modelos_teste.items():
+            print(f"Modelo: {nome_modelo}")
+            for v1 in valor1:
+                for v2 in (valor2 if valor2 is not None else [None]):
+                    make = lambda u=v1, v=v2: model(u, v)
+                    aucs = [auc_calc(df, ano, make_model=make, **variante_escolhida) for ano in anos_val]
+                    print(f"  {str(v1):<8} {str(v2):<8}", "AUC anuais:", np.round(aucs, 3),
+                        "Média AUC:", round(np.mean(aucs), 3), "Std Dev AUC:", round(np.std(aucs), 3))
+                    
+    print("\n\nValores da validação final (2020) para os melhores modelos: \n")
     for nome, make in modelos_finais.items():
         auc = auc_calc(df, 2020, make_model=make, **variante_escolhida)
         print(f"{nome:25s} AUC 2020 = {auc:.3f}")
