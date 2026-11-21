@@ -7,6 +7,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neural_network import MLPClassifier
 
+PRINT_MODELS = False
+
 modelos_teste = {
     "logreg C":     (lambda u,v: LogisticRegression(C=u, class_weight="balanced", max_iter=1000), [0.01, 0.1, 1, 10, 100], None),
     "arvore depth": (lambda u,v: DecisionTreeClassifier(max_depth=u, min_samples_leaf=10,
@@ -88,6 +90,28 @@ def auc_calc(df, ano, cols, make_model, so_completas=False, imputar=False):
     probs = modelo.predict_proba(X_va)[:, 1] # probabilidade de HAB na validação
     return roc_auc_score(y_va, probs) # valor de AUC da validação
 
+def correlation(df, ano, PRINT=False):
+    if PRINT:
+        tr = df[df["Year"] < ano]
+        cols_corr = ["doy_sin", "doy_cos", "SST", "UI"] + [f"cluster_{c}" for c in range(6)]
+        print(tr[cols_corr + ["HAB"]].corr()["HAB"].drop("HAB").round(2))
+
+
+def exp_features(df, anos=(2016, 2018, 2019)):
+    base = ["doy_sin", "doy_cos", "SST", "UI"] + [f"cluster_{c}" for c in range(6)]
+    variantes = {
+        "base":                    base,
+        "sem UI":                  [c for c in base if c != "UI"],
+        "sem doy_cos":             [c for c in base if c != "doy_cos"],
+        "sem UI nem doy_cos":      [c for c in base if c not in ("UI", "doy_cos")],
+    }
+    logreg = lambda: LogisticRegression(C=0.1, class_weight="balanced", max_iter=1000)
+    for nome, cols in variantes.items():
+        aucs = [auc_calc(df, ano, make_model=logreg, cols=cols) for ano in anos]
+        print(f"{nome:22s} {np.round(aucs, 3)} média {np.mean(aucs):.3f} dp {np.std(aucs):.3f}")
+
+
+
 def main():
     df = pd.read_excel("data/classification_task1_train.xlsx")
     df = df.sort_values("Date").reset_index(drop=True)
@@ -115,19 +139,23 @@ def main():
     variante_escolhida = variantes["C: sem CHL"]  # variante escolhida para o modelo final
     anos_val = [2016, 2018, 2019]
     # Teste de AUC para cada modelo
-    for nome_modelo, (model, valor1, valor2) in modelos_teste.items():
-        print(f"Modelo: {nome_modelo}")
-        for v1 in valor1:
-            for v2 in (valor2 if valor2 is not None else [None]):
-                make = lambda u=v1, v=v2: model(u, v)
-                aucs = [auc_calc(df, ano, make_model=make, **variante_escolhida) for ano in anos_val]
-                print(f"  {str(v1):<8} {str(v2):<8}", "AUC anuais:", np.round(aucs, 3),
-                    "Média AUC:", round(np.mean(aucs), 3), "Std Dev AUC:", round(np.std(aucs), 3))
+    if PRINT_MODELS:
+        for nome_modelo, (model, valor1, valor2) in modelos_teste.items():
+            print(f"Modelo: {nome_modelo}")
+            for v1 in valor1:
+                for v2 in (valor2 if valor2 is not None else [None]):
+                    make = lambda u=v1, v=v2: model(u, v)
+                    aucs = [auc_calc(df, ano, make_model=make, **variante_escolhida) for ano in anos_val]
+                    print(f"  {str(v1):<8} {str(v2):<8}", "AUC anuais:", np.round(aucs, 3),
+                        "Média AUC:", round(np.mean(aucs), 3), "Std Dev AUC:", round(np.std(aucs), 3))
+
     print("\n\n Valores da validação final (2020) para os melhores modelos: \n")
     for nome, make in modelos_finais.items():
         auc = auc_calc(df, 2020, make_model=make, **variante_escolhida)
         print(f"{nome:25s} AUC 2020 = {auc:.3f}")
 
+    correlation(df, 2020, PRINT=True)
+    exp_features(df=df)
 
 
 
