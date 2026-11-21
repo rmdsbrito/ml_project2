@@ -6,28 +6,27 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neural_network import MLPClassifier
-
-PRINT_MODELS = False
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
 
 modelos_teste = {
-    "logreg C":     (lambda u,v: LogisticRegression(C=u, class_weight="balanced", max_iter=1000), [0.01, 0.1, 1, 10, 100], None),
+    "logreg C": (lambda u,v: LogisticRegression(C=u, class_weight="balanced", max_iter=1000), [0.01, 0.1, 1, 10, 100], None),
     "arvore depth": (lambda u,v: DecisionTreeClassifier(max_depth=u, min_samples_leaf=10,
                                                      class_weight="balanced", random_state=0), [3, 4, 5, 6], None),
-    "rf depth x leaf":     (lambda u,v: RandomForestClassifier(n_estimators=300, max_depth=u, min_samples_leaf=v,
+    "rf depth x leaf": (lambda u,v: RandomForestClassifier(n_estimators=300, max_depth=u, min_samples_leaf=v,
                                                       class_weight="balanced", random_state=0), [3, 5, 7], [5, 10]),
-    "mlp layers x alpha":    (lambda u,v: MLPClassifier(hidden_layer_sizes=u, alpha=v,
-                                             max_iter=2000, random_state=0), [(8,), (16,)], [1e-3, 1e-2, 1e-1, 1, 5, 10]),
-                                             
+    "mlp layers x alpha": (lambda u,v: MLPClassifier(hidden_layer_sizes=u, alpha=v,
+                                             max_iter=2000, random_state=0), [(8,), (12,), (16,)], [1e-1, 1, 5, 10]),
+    "kNN k x weights": (lambda u, v: KNeighborsClassifier(n_neighbors=u, weights=v),[5, 15, 30, 60], ["uniform", "distance"],),
+    "naive bayes var_smoothing": (lambda u, v: GaussianNB(var_smoothing=u), [1e-9, 1e-3, 1e-1, 1], None),                                             
 }
 
 # Dois melhores modelos par comparação direta
 modelos_finais = {
-    "logreg (C=0.1)":      lambda: LogisticRegression(C=0.1, class_weight="balanced", max_iter=1000),
-    "mlp (16 lay) a=5":     lambda: MLPClassifier(hidden_layer_sizes=(16,), alpha=5, max_iter=2000, random_state=0),
-    "rf d=3 leaf=10":    lambda: RandomForestClassifier(n_estimators=300, max_depth=3, min_samples_leaf=10,
-                                                        class_weight="balanced", random_state=0),
+    "logreg (C=0.1)": lambda: LogisticRegression(C=0.1, class_weight="balanced", max_iter=1000),
+    "mlp (12 lay) a=0.1": lambda: MLPClassifier(hidden_layer_sizes=(12,), alpha=0.1, max_iter=2000, random_state=0),
+    "kNN 60 nei - uniform": lambda: KNeighborsClassifier(n_neighbors=60, weights="uniform"),
 }
-
 
 def ridge_fit(X, y, lam=1.0):
     mu, sd = X.mean(axis=0), X.std(axis=0)
@@ -96,21 +95,19 @@ def correlation(df, ano, PRINT=False):
         cols_corr = ["doy_sin", "doy_cos", "SST", "UI"] + [f"cluster_{c}" for c in range(6)]
         print(tr[cols_corr + ["HAB"]].corr()["HAB"].drop("HAB").round(2))
 
-
-def exp_features(df, anos=(2016, 2018, 2019)):
-    base = ["doy_sin", "doy_cos", "SST", "UI"] + [f"cluster_{c}" for c in range(6)]
-    variantes = {
-        "base":                    base,
-        "sem UI":                  [c for c in base if c != "UI"],
-        "sem doy_cos":             [c for c in base if c != "doy_cos"],
-        "sem UI nem doy_cos":      [c for c in base if c not in ("UI", "doy_cos")],
-    }
-    logreg = lambda: LogisticRegression(C=0.1, class_weight="balanced", max_iter=1000)
-    for nome, cols in variantes.items():
-        aucs = [auc_calc(df, ano, make_model=logreg, cols=cols) for ano in anos]
-        print(f"{nome:22s} {np.round(aucs, 3)} média {np.mean(aucs):.3f} dp {np.std(aucs):.3f}")
-
-
+def exp_features(df, anos=(2016, 2018, 2019), PRINT=False):
+    if PRINT:
+        base = ["doy_sin", "doy_cos", "SST", "UI"] + [f"cluster_{c}" for c in range(6)]
+        variantes = {
+            "base":                    base,
+            "sem UI":                  [c for c in base if c != "UI"],
+            "sem doy_cos":             [c for c in base if c != "doy_cos"],
+            "sem UI nem doy_cos":      [c for c in base if c not in ("UI", "doy_cos")],
+        }
+        logreg = lambda: LogisticRegression(C=0.1, class_weight="balanced", max_iter=1000)
+        for nome, cols in variantes.items():
+            aucs = [auc_calc(df, ano, make_model=logreg, cols=cols) for ano in anos]
+            print(f"{nome:22s} {np.round(aucs, 3)} média {np.mean(aucs):.3f} dp {np.std(aucs):.3f}")
 
 def main():
     df = pd.read_excel("data/classification_task1_train.xlsx")
@@ -139,6 +136,7 @@ def main():
     variante_escolhida = variantes["C: sem CHL"]  # variante escolhida para o modelo final
     anos_val = [2016, 2018, 2019]
     # Teste de AUC para cada modelo
+    PRINT_MODELS = False
     if PRINT_MODELS:
         for nome_modelo, (model, valor1, valor2) in modelos_teste.items():
             print(f"Modelo: {nome_modelo}")
@@ -148,17 +146,14 @@ def main():
                     aucs = [auc_calc(df, ano, make_model=make, **variante_escolhida) for ano in anos_val]
                     print(f"  {str(v1):<8} {str(v2):<8}", "AUC anuais:", np.round(aucs, 3),
                         "Média AUC:", round(np.mean(aucs), 3), "Std Dev AUC:", round(np.std(aucs), 3))
-
-    print("\n\n Valores da validação final (2020) para os melhores modelos: \n")
+                        
+    print("\n\nValores da validação final (2020) para os melhores modelos: \n")
     for nome, make in modelos_finais.items():
         auc = auc_calc(df, 2020, make_model=make, **variante_escolhida)
         print(f"{nome:25s} AUC 2020 = {auc:.3f}")
 
-    correlation(df, 2020, PRINT=True)
-    exp_features(df=df)
-
-
-
+    correlation(df, 2020, PRINT=False)
+    exp_features(df=df, PRINT=False)
 
 if __name__ == "__main__":
     main()
