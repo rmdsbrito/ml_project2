@@ -68,7 +68,8 @@ def main():
 
     # candidate model factories
     modelos = {
-        "logreg C=0.1": lambda: LogisticRegression(C=0.1, class_weight="balanced", max_iter=1000), "mlp (12,) a=0.1": lambda: MLPClassifier(hidden_layer_sizes=(12,), alpha=0.1, max_iter=2000, random_state=0),
+        "logreg C=0.1": lambda: LogisticRegression(C=0.1, class_weight="balanced", max_iter=1000), 
+        "mlp (12 lay) a=0.1": lambda: MLPClassifier(hidden_layer_sizes=(12,), alpha=0.1, max_iter=2000, random_state=0),
     }
 
     # evaluate each candidate via temporal validation and log performance metrics
@@ -76,8 +77,8 @@ def main():
         aucs, y_v, p_v = validar(df, X, y, make, anos=[2016, 2018, 2019, 2020])
         m = metricas(y_v, p_v)
         
-        print(f"{nome:16s} AUC per year {np.round(aucs, 3)} mean {np.mean(aucs):.3f}")
-        print(f"{'':16s} recall {m['recall']:.2f} precision {m['precision']:.2f} f1 {m['f1']:.2f} "f"| TP {m['tp']} FP {m['fp']} FN {m['fn']} TN {m['tn']}")
+        print(f"{nome:20s} | AUC per year {np.round(aucs, 3)} mean {np.mean(aucs):.3f}")
+        print(f"{'':20s} | recall {m['recall']:.2f} precision {m['precision']:.2f} f1 {m['f1']:.2f} "f"| TP {m['tp']} FP {m['fp']} FN {m['fn']} TN {m['tn']}")
 
     # final fit on full dataset (2013-2020): logistic regression is chosen over MLP for higher predictability and stability despite slightly lower validation scores
     make = modelos["logreg C=0.1"]
