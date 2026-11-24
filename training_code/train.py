@@ -8,7 +8,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import roc_auc_score
 
-# resolve project root directory, parents[1] is the project root (one level above this script)
+# resolved project root directory, parents[1] is the project root (one level above this script)
 RAIZ = Path(__file__).resolve().parents[1]
 
 # shared with prediction time, so train and predict build features identically
